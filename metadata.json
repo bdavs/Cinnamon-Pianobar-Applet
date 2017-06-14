@@ -1,0 +1,7 @@
+{
+    "uuid": "nowplaying@cinnamon.org",
+    "dangerous": false,
+    "description": "A simple applet that displays currently playing song on pianobar.",
+    "name": "NowPlaying",
+    "icon": "audio-headphones"
+}

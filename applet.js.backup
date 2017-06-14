@@ -1,0 +1,70 @@
+const Applet = imports.ui.applet;
+const St = imports.gi.St;
+const Cinnamon = imports.gi.Cinnamon;
+const Lang = imports.lang;
+const Main = imports.ui.main;
+const Mainloop = imports.mainloop;
+const Gettext = imports.gettext;
+const UUID = "nowplaying@cinnamon.org";
+const GLib = imports.gi.GLib;
+const PopupMenu = imports.ui.popupMenu;
+
+Gettext.bindtextdomain(UUID, GLib.get_home_dir() + "/.local/share/locale")
+
+function _(str) {
+  return Gettext.dgettext(UUID, str);
+}
+function MyApplet(orientation, panel_height, instane_id) {
+	this._init(orientation, panel_height, instane_id);
+}
+
+MyApplet.prototype = {
+	__proto__: Applet.TextApplet.prototype,
+	_timeout: null,
+
+	_init: function(orientation, panel_height, instane_id) {
+		Applet.TextApplet.prototype._init.call(this, orientation, panel_height, instane_id);
+
+		try {
+			this._applet_label.set_style('text-align: left');
+			this._refresh();
+			this._timeout = Mainloop.timeout_add_seconds(1, Lang.bind(this, this._refresh));
+			this.menu = new Applet.AppletPopupMenu(this, orientation, panel_height, instane_id);
+//			let section = new PopupMenu.PopupMenuSection(_("test"));
+			let item = new PopupMenu.PopupMenuItem("");
+			item.addActor(new St.Label({
+			    text:_("play/pause"),
+			    style_class:"sm-label"
+			}));
+			this.menu.addMenuItem(item);
+		}
+		catch (e) {
+			global.logError(e);
+		}
+	},
+
+	_refresh: function()
+	{
+		let label_text=Cinnamon.get_file_contents_utf8_sync('/home/bobby/.config/pianobar/nowplaying').split("\n")[0];
+		let hover_text=Cinnamon.get_file_contents_utf8_sync('/home/bobby/.config/pianobar/nowplaying').split("\n")[1];
+		this.set_applet_label(label_text);
+		this.set_applet_tooltip(hover_text);
+		return true;
+	},
+
+	on_applet_removed_from_panel: function(){
+		if(this._timeout){
+			Mainloop.source_remove(this._timeout);
+			this._timeout=null;
+		}
+	},
+
+	on_applet_clicked: function(){
+		this.menu.toggle();
+	},
+};
+
+function main(metadata, orientation, panel_height, instance_id){
+	let myApplet = new MyApplet(orientation, panel_height, instance_id);
+	return myApplet;
+}

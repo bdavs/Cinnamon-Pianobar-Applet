@@ -1,0 +1,81 @@
+const Applet = imports.ui.applet;
+const St = imports.gi.St;
+const Cinnamon = imports.gi.Cinnamon;
+const Lang = imports.lang;
+const Main = imports.ui.main;
+const Mainloop = imports.mainloop;
+const Gettext = imports.gettext;
+const UUID = "nowplaying@cinnamon.org";
+const GLib = imports.gi.GLib;
+const PopupMenu = imports.ui.popupMenu;
+const Util = imports.misc.util;
+
+const PWD = "/home/bobby/.local/share/cinnamon/applets/nowplaying@cinnamon.org";
+
+Gettext.bindtextdomain(UUID, GLib.get_home_dir() + "/.local/share/locale")
+
+function _(str) {
+  return Gettext.dgettext(UUID, str);
+}
+function MyApplet(orientation, panel_height, instane_id) {
+	this._init(orientation, panel_height, instane_id);
+}
+
+MyApplet.prototype = {
+	__proto__: Applet.TextIconApplet.prototype,
+	_timeout: null,
+
+	_init: function(orientation, panel_height, instane_id) {
+		Applet.TextIconApplet.prototype._init.call(this, orientation, panel_height, instane_id);
+
+		try {
+			this._applet_label.set_style('text-align: left');
+			this.set_applet_icon_symbolic_name("media-playback-start");
+
+			this._refresh();
+			this._timeout = Mainloop.timeout_add_seconds(1, Lang.bind(this, this._refresh));
+
+			this.menuManager = new PopupMenu.PopupMenuManager(this);
+			this.menu = new Applet.AppletPopupMenu(this, orientation);
+			this.menuManager.addMenu(this.menu);
+			this._contentSection = new PopupMenu.PopupMenuSection();
+			this.menu.addMenuItem(this._contentSection);
+
+			let item = new PopupMenu.PopupIconMenuItem(_("Play/Pause"),"media-playback-pause",St.IconType.SYMBOLIC);
+			item.connect('activate',Lang.bind(this,function(){
+				Util.spawnCommandLine(PWD + "/helper.sh");
+			}));
+			this.menu.addMenuItem(item);
+			this.menu.addMenuItem(new PopupMenu.PopupMenuSeparatorItem());
+
+		}
+		catch (e) {
+			global.logError(e);
+		}
+	},
+
+	_refresh: function()
+	{
+		let label_text=Cinnamon.get_file_contents_utf8_sync('/home/bobby/.config/pianobar/nowplaying').split("\n")[0];
+		let hover_text=Cinnamon.get_file_contents_utf8_sync('/home/bobby/.config/pianobar/nowplaying').split("\n")[1];
+		this.set_applet_label(label_text);
+		this.set_applet_tooltip(hover_text);
+		return true;
+	},
+
+	on_applet_removed_from_panel: function(){
+		if(this._timeout){
+			Mainloop.source_remove(this._timeout);
+			this._timeout=null;
+		}
+	},
+
+	on_applet_clicked: function(){
+		this.menu.toggle();
+	},
+};
+
+function main(metadata, orientation, panel_height, instance_id){
+	let myApplet = new MyApplet(orientation, panel_height, instance_id);
+	return myApplet;
+}
